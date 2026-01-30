@@ -1,9 +1,25 @@
 import Poll, { IPoll, Vote } from '../models/Poll';
 import ChatMessage from '../models/Chat';
 
+// Interface for vote percentages
+interface VotePercentage {
+  option: string;
+  votes: number;
+  percentage: number;
+}
+
+// Interface for poll results
+interface PollResults {
+  pollId: string;
+  question: string;
+  options: VotePercentage[];
+  totalVotes: number;
+  correctAnswers: string[];
+}
+
 // Service for managing polls with race condition prevention
 class PollService {
-  // Create a new poll
+  // Create a new poll - ensures no active poll exists in session
   static async createPoll(
     question: string,
     options: string[],
@@ -11,6 +27,13 @@ class PollService {
     createdBy: string,
     sessionId: string
   ): Promise<IPoll> {
+    // Check if active poll already exists in this session
+    const activePolls = await Poll.find({ sessionId, active: true });
+
+    if (activePolls.length > 0) {
+      throw new Error('An active poll already exists in this session');
+    }
+
     const poll = new Poll({
       question,
       options,
@@ -24,13 +47,14 @@ class PollService {
     return poll;
   }
 
-  // Add vote with race condition prevention
-  static async addVote(
+  // Submit a vote with duplicate prevention
+  static async submitVote(
     pollId: string,
     studentName: string,
     option: string
-  ): Promise<IPoll> {
-    // Use findByIdAndUpdate with atomic operation to prevent race conditions
+  ): Promise<{ poll: IPoll; results: VotePercentage[] }> {
+    const normalizedName = studentName.toLowerCase().trim();
+
     const poll = await Poll.findById(pollId);
 
     if (!poll) {
@@ -41,27 +65,27 @@ class PollService {
       throw new Error('Poll is no longer active');
     }
 
-    // Check if student already voted
+    // Check if student already voted (race condition prevention)
     const studentVoted = poll.votes.some(
-      (v: Vote) => v.studentName === studentName.toLowerCase().trim()
+      (v: Vote) => v.studentName === normalizedName
     );
 
     if (studentVoted) {
       throw new Error(`Student ${studentName} has already voted`);
     }
 
-    // Validate option
+    // Validate option exists
     if (!poll.options.includes(option)) {
       throw new Error(`Invalid option: ${option}`);
     }
 
-    // Add vote atomically
+    // Add vote atomically using MongoDB $push operator
     const updated = await Poll.findByIdAndUpdate(
       pollId,
       {
         $push: {
           votes: {
-            studentName: studentName.toLowerCase().trim(),
+            studentName: normalizedName,
             option,
           },
         },
@@ -73,26 +97,57 @@ class PollService {
       throw new Error('Failed to add vote');
     }
 
-    return updated;
+    // Calculate and return live percentages
+    const results = this.calculatePercentages(updated);
+
+    return { poll: updated, results };
   }
 
-  // Get poll by ID
-  static async getPoll(pollId: string): Promise<IPoll | null> {
-    return Poll.findById(pollId);
+  // Get current active poll with remaining time
+  static async getCurrentPoll(sessionId: string): Promise<{
+    poll: IPoll;
+    remainingTime: number;
+  } | null> {
+    const activePolls = await Poll.find({ sessionId, active: true });
+
+    if (activePolls.length === 0) {
+      return null;
+    }
+
+    const poll = activePolls[0];
+    const remainingTime = this.getRemainingTime(poll);
+
+    return { poll, remainingTime };
   }
 
-  // Get all polls in a session
-  static async getPollsBySession(sessionId: string): Promise<IPoll[]> {
-    return Poll.find({ sessionId }).sort({ createdAt: -1 });
+  // Get poll results with percentages
+  static async getResults(pollId: string): Promise<PollResults> {
+    const poll = await Poll.findById(pollId);
+
+    if (!poll) {
+      throw new Error('Poll not found');
+    }
+
+    const percentages = this.calculatePercentages(poll);
+
+    return {
+      pollId: poll._id.toString(),
+      question: poll.question,
+      options: percentages,
+      totalVotes: poll.votes.length,
+      correctAnswers: poll.correctAnswers,
+    };
   }
 
-  // Get active polls only
-  static async getActivePollsInSession(sessionId: string): Promise<IPoll[]> {
-    return Poll.find({ sessionId, active: true });
+  // Get all past inactive polls (history)
+  static async getHistory(sessionId: string): Promise<IPoll[]> {
+    return Poll.find({ sessionId, active: false })
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
-  // Close poll (set active to false)
-  static async closePoll(pollId: string): Promise<IPoll | null> {
+  // End a poll (set active to false)
+  static async endPoll(pollId: string): Promise<IPoll | null> {
     return Poll.findByIdAndUpdate(
       pollId,
       { active: false },
@@ -100,18 +155,33 @@ class PollService {
     );
   }
 
-  // Get poll statistics
-  static async getPollStats(pollId: string) {
-    const poll = await Poll.findById(pollId);
+  // Calculate remaining time in seconds
+  static getRemainingTime(poll: IPoll): number {
+    const now = new Date().getTime();
+    const startTime = new Date(poll.startTime).getTime();
+    const elapsedSeconds = Math.floor((now - startTime) / 1000);
+    const remainingSeconds = Math.max(0, poll.duration - elapsedSeconds);
 
-    if (!poll) {
-      throw new Error('Poll not found');
-    }
-
-    return poll.getStats();
+    return remainingSeconds;
   }
 
-  // Mark correct answers
+  // Helper: Calculate vote percentages
+  private static calculatePercentages(poll: IPoll): VotePercentage[] {
+    const totalVotes = poll.votes.length;
+
+    return poll.options.map((option: string) => {
+      const votes = poll.votes.filter((v: Vote) => v.option === option).length;
+      const percentage = totalVotes === 0 ? 0 : (votes / totalVotes) * 100;
+
+      return {
+        option,
+        votes,
+        percentage: Math.round(percentage * 100) / 100, // Round to 2 decimals
+      };
+    });
+  }
+
+  // Mark correct answers for poll
   static async markCorrectAnswers(
     pollId: string,
     correctAnswers: string[]
@@ -121,6 +191,16 @@ class PollService {
       { correctAnswers },
       { new: true }
     );
+  }
+
+  // Get poll by ID
+  static async getPoll(pollId: string): Promise<IPoll | null> {
+    return Poll.findById(pollId);
+  }
+
+  // Get all polls in session
+  static async getPollsBySession(sessionId: string): Promise<IPoll[]> {
+    return Poll.find({ sessionId }).sort({ createdAt: -1 });
   }
 }
 
@@ -150,9 +230,12 @@ class ChatService {
     return ChatMessage.find({ pollId }).sort({ timestamp: 1 });
   }
 
-  // Get messages for a session
+  // Get recent messages for a session
   static async getMessagesBySession(sessionId: string) {
-    return ChatMessage.find({ sessionId }).sort({ timestamp: -1 }).limit(50);
+    return ChatMessage.find({ sessionId })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .lean();
   }
 
   // Delete old messages (cleanup)
@@ -167,4 +250,5 @@ class ChatService {
   }
 }
 
-export { PollService, ChatService };
+export { PollService, ChatService, VotePercentage, PollResults };
+

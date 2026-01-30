@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './db';
+import { handleSockets } from './sockets/PollSocketHandler';
+import pollRoutes from './routes/pollRoutes';
 
 dotenv.config();
 
@@ -25,23 +27,24 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('✅ New client connected:', socket.id);
+// Initialize Socket.IO event handlers
+handleSockets(io);
 
-  socket.on('joinSession', (sessionId, studentName) => {
-    console.log(`${studentName} joined session ${sessionId}`);
-    socket.join(sessionId);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Client disconnected:', socket.id);
-  });
-});
+// API Routes
+app.use('/api/polls', pollRoutes);
 
 // Basic routes
 app.get('/health', (req, res) => {
   res.json({ status: 'Server is running' });
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
 
 server.listen(PORT, () => {
