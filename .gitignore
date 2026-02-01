@@ -6,3 +6,13 @@ build/
 *.log
 .vscode/
 .idea/
+
+# Environment files
+.env
+*.env
+
+# Documentation files
+*.md
+README.md
+DEPLOYMENT.md
+WORKFLOW.md
