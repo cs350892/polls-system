@@ -22,7 +22,6 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     join(DEFAULT_SESSION_ID, 'teacher');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasActivePoll = Boolean(currentPoll);

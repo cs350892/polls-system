@@ -1,7 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { PollService, ChatService } from '../services/PollService';
 
-// Types
 type Role = 'teacher' | 'student';
 
 interface Participant {
@@ -10,11 +9,9 @@ interface Participant {
   sessionId: string;
 }
 
-// In-memory maps
 const connectedUsers = new Map<string, Participant>();
 const pollTimers = new Map<string, NodeJS.Timeout>();
 
-// Helpers
 const getParticipants = (sessionId: string) => {
   return Array.from(connectedUsers.entries())
     .filter(([, user]) => user.sessionId === sessionId)
@@ -33,7 +30,6 @@ const startPollTimer = (
   pollId: string,
   duration: number
 ) => {
-  // Clear existing timer if any
   const existing = pollTimers.get(pollId);
   if (existing) {
     clearInterval(existing);
@@ -69,12 +65,10 @@ const startPollTimer = (
   pollTimers.set(pollId, interval);
 };
 
-// Main handler
 const handleSockets = (io: Server) => {
   io.on('connection', (socket: Socket) => {
     console.log('✅ Socket connected:', socket.id);
 
-    // Join session
     socket.on(
       'join',
       async (payload: { sessionId: string; role: Role; studentName?: string }) => {
@@ -93,7 +87,6 @@ const handleSockets = (io: Server) => {
             return;
           }
 
-          // Prevent duplicate student name in session
           const duplicate = Array.from(connectedUsers.values()).some(
             (user) =>
               user.sessionId === sessionId &&
@@ -111,7 +104,6 @@ const handleSockets = (io: Server) => {
 
           broadcastParticipants(io, sessionId);
 
-          // Send current state for resilience
           const activePoll = await PollService.getCurrentPoll(sessionId);
 
           if (activePoll) {
@@ -145,7 +137,6 @@ const handleSockets = (io: Server) => {
       }
     );
 
-    // Create poll (teacher only)
     socket.on(
       'createPoll',
       async (payload: {
@@ -185,7 +176,6 @@ const handleSockets = (io: Server) => {
       }
     );
 
-    // Submit vote (student only)
     socket.on(
       'submitVote',
       async (payload: {
@@ -221,7 +211,6 @@ const handleSockets = (io: Server) => {
       }
     );
 
-    // Send chat message
     socket.on(
       'sendMessage',
       async (payload: {
@@ -252,7 +241,6 @@ const handleSockets = (io: Server) => {
       }
     );
 
-    // Kick student (teacher only)
     socket.on(
       'kickStudent',
       (payload: { sessionId: string; targetSocketId: string }) => {
@@ -282,7 +270,6 @@ const handleSockets = (io: Server) => {
       }
     );
 
-    // Disconnect
     socket.on('disconnect', () => {
       const user = connectedUsers.get(socket.id);
 

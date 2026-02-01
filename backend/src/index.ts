@@ -23,7 +23,6 @@ const io = new Server(server, {
   },
 });
 
-// Middleware
 app.use(
   cors({
     origin: CLIENT_ORIGINS,
@@ -34,16 +33,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
 connectDB();
-
-// Initialize Socket.IO event handlers
 handleSockets(io);
-
-// API Routes
 app.use('/api/polls', pollRoutes);
 
-// Basic routes
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'Server is running' });
 });

@@ -1,14 +1,12 @@
 import Poll, { IPoll, Vote } from '../models/Poll';
 import ChatMessage from '../models/Chat';
 
-// Interface for vote percentages
 interface VotePercentage {
   option: string;
   votes: number;
   percentage: number;
 }
 
-// Interface for poll results
 interface PollResults {
   pollId: string;
   question: string;
@@ -17,9 +15,7 @@ interface PollResults {
   correctAnswers: string[];
 }
 
-// Service for managing polls with race condition prevention
 class PollService {
-  // Create a new poll - ensures no active poll exists in session
   static async createPoll(
     question: string,
     options: string[],
@@ -27,7 +23,6 @@ class PollService {
     createdBy: string,
     sessionId: string
   ): Promise<IPoll> {
-    // Check if active poll already exists in this session
     const activePolls = await Poll.find({ sessionId, active: true });
 
     if (activePolls.length > 0) {
@@ -47,7 +42,6 @@ class PollService {
     return poll;
   }
 
-  // Submit a vote with duplicate prevention
   static async submitVote(
     pollId: string,
     studentName: string,
@@ -65,7 +59,6 @@ class PollService {
       throw new Error('Poll is no longer active');
     }
 
-    // Check if student already voted (race condition prevention)
     const studentVoted = poll.votes.some(
       (v: Vote) => v.studentName === normalizedName
     );
@@ -74,12 +67,10 @@ class PollService {
       throw new Error(`Student ${studentName} has already voted`);
     }
 
-    // Validate option exists
     if (!poll.options.includes(option)) {
       throw new Error(`Invalid option: ${option}`);
     }
 
-    // Add vote atomically using MongoDB $push operator
     const updated = await Poll.findByIdAndUpdate(
       pollId,
       {
@@ -97,13 +88,11 @@ class PollService {
       throw new Error('Failed to add vote');
     }
 
-    // Calculate and return live percentages
     const results = this.calculatePercentages(updated);
 
     return { poll: updated, results };
   }
 
-  // Get current active poll with remaining time
   static async getCurrentPoll(sessionId: string): Promise<{
     poll: IPoll;
     remainingTime: number;
@@ -120,7 +109,6 @@ class PollService {
     return { poll, remainingTime };
   }
 
-  // Get poll results with percentages
   static async getResults(pollId: string): Promise<PollResults> {
     const poll = await Poll.findById(pollId);
 
@@ -139,14 +127,12 @@ class PollService {
     };
   }
 
-  // Get all past inactive polls (history)
   static async getHistory(sessionId: string): Promise<IPoll[]> {
     return Poll.find({ sessionId, active: false })
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  // End a poll (set active to false)
   static async endPoll(pollId: string): Promise<IPoll | null> {
     return Poll.findByIdAndUpdate(
       pollId,
@@ -155,7 +141,6 @@ class PollService {
     );
   }
 
-  // Calculate remaining time in seconds
   static getRemainingTime(poll: IPoll): number {
     const now = new Date().getTime();
     const startTime = new Date(poll.startTime).getTime();
@@ -165,7 +150,6 @@ class PollService {
     return remainingSeconds;
   }
 
-  // Helper: Calculate vote percentages
   private static calculatePercentages(poll: IPoll): VotePercentage[] {
     const totalVotes = poll.votes.length;
 
@@ -176,12 +160,11 @@ class PollService {
       return {
         option,
         votes,
-        percentage: Math.round(percentage * 100) / 100, // Round to 2 decimals
+        percentage: Math.round(percentage * 100) / 100,
       };
     });
   }
 
-  // Mark correct answers for poll
   static async markCorrectAnswers(
     pollId: string,
     correctAnswers: string[]
@@ -193,20 +176,16 @@ class PollService {
     );
   }
 
-  // Get poll by ID
   static async getPoll(pollId: string): Promise<IPoll | null> {
     return Poll.findById(pollId);
   }
 
-  // Get all polls in session
   static async getPollsBySession(sessionId: string): Promise<IPoll[]> {
     return Poll.find({ sessionId }).sort({ createdAt: -1 });
   }
 }
 
-// Service for managing chat messages
 class ChatService {
-  // Save a chat message
   static async saveMessage(
     pollId: string,
     from: string,
@@ -225,12 +204,10 @@ class ChatService {
     return message;
   }
 
-  // Get messages for a poll
   static async getMessagesByPoll(pollId: string) {
     return ChatMessage.find({ pollId }).sort({ timestamp: 1 });
   }
 
-  // Get recent messages for a session
   static async getMessagesBySession(sessionId: string) {
     return ChatMessage.find({ sessionId })
       .sort({ timestamp: -1 })
@@ -238,7 +215,6 @@ class ChatService {
       .lean();
   }
 
-  // Delete old messages (cleanup)
   static async deleteOldMessages(sessionId: string, daysOld: number = 7) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// Types
 export type Role = 'teacher' | 'student';
 
 export interface Poll {
