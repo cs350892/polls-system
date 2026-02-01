@@ -68,65 +68,81 @@ const TeacherQuestionForm = ({ isDisabled = false, onSubmit }: TeacherQuestionFo
   };
 
   return (
-    <div className="w-full max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-2xl font-bold text-gray-900">Let's Get Started</h2>
-      <p className="mt-1 text-sm text-gray-600">Create a question for your students.</p>
-
-      <div className="mt-6 space-y-5">
+    <div className="w-full max-w-3xl animate-slideUp rounded-3xl border-2 border-purple-200 bg-white p-8 shadow-xl">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 text-2xl shadow-lg">
+          📝
+        </div>
         <div>
-          <label className="text-sm font-semibold text-gray-700">Question</label>
+          <h2 className="text-2xl font-extrabold text-gray-900">Create New Poll</h2>
+          <p className="text-sm text-gray-600">Design an engaging question for your students</p>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <label className="mb-2 block text-sm font-bold text-gray-700">
+            Question <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Type your question here"
-            className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+            placeholder="What is your question for students?"
+            className="form-input w-full rounded-xl border-2 border-gray-200 px-4 py-3.5 text-base placeholder-gray-400 transition focus:border-primary focus:outline-none"
             disabled={isDisabled}
           />
         </div>
 
         <div>
-          <label className="text-sm font-semibold text-gray-700">Duration</label>
-          <div className="mt-2 flex flex-wrap gap-3">
+          <label className="mb-3 block text-sm font-bold text-gray-700">
+            Duration <span className="text-xs font-normal text-gray-500">(seconds)</span>
+          </label>
+          <div className="flex flex-wrap gap-3">
             {durations.map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setDuration(value)}
                 disabled={isDisabled}
-                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                className={`duration-pill rounded-xl border-2 px-6 py-3 text-sm font-bold transition ${
                   duration === value
-                    ? 'border-primary bg-purple-50 text-purple-700'
-                    : 'border-gray-200 text-gray-600'
+                    ? 'duration-pill-active border-primary bg-purple-100 text-purple-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-purple-200 hover:bg-purple-50'
                 }`}
               >
-                {value}s
+                ⏱️ {value}s
               </button>
             ))}
           </div>
         </div>
 
         <div className="space-y-4">
-          <label className="text-sm font-semibold text-gray-700">Options</label>
-          {options.map((option, index) => (
-            <OptionInput
-              key={`option-${index}`}
-              index={index}
-              value={option}
-              isCorrect={correctMap[index]}
-              onChange={(value) => handleOptionChange(index, value)}
-              onCorrectChange={(value) => handleCorrectChange(index, value)}
-              onRemove={options.length > 2 ? () => handleRemoveOption(index) : undefined}
-            />
-          ))}
+          <label className="block text-sm font-bold text-gray-700">
+            Answer Options <span className="text-red-500">*</span>
+            <span className="ml-2 text-xs font-normal text-gray-500">(minimum 2 required)</span>
+          </label>
+          <div className="space-y-3">
+            {options.map((option, index) => (
+              <OptionInput
+                key={`option-${index}`}
+                index={index}
+                value={option}
+                isCorrect={correctMap[index]}
+                onChange={(value) => handleOptionChange(index, value)}
+                onCorrectChange={(value) => handleCorrectChange(index, value)}
+                onRemove={options.length > 2 ? () => handleRemoveOption(index) : undefined}
+              />
+            ))}
+          </div>
 
           <button
             type="button"
             onClick={handleAddOption}
             disabled={isDisabled}
-            className="text-sm font-semibold text-purple-700 hover:text-purple-800"
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-purple-600 transition hover:bg-purple-50"
           >
-            + Add More
+            <span className="text-xl">+</span> Add More Options
           </button>
         </div>
 
@@ -134,9 +150,9 @@ const TeacherQuestionForm = ({ isDisabled = false, onSubmit }: TeacherQuestionFo
           type="button"
           onClick={handleSubmit}
           disabled={!isValid || isDisabled}
-          className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50"
+          className="submit-button mt-8 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 text-lg font-extrabold text-white shadow-xl transition"
         >
-          Ask Question
+          🚀 Create Poll & Send to Students
         </button>
       </div>
     </div>

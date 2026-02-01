@@ -53,6 +53,7 @@ const useSocket = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isKicked, setIsKicked] = useState<boolean>(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     currentPollRef.current = currentPoll;
@@ -111,6 +112,10 @@ const useSocket = () => {
       setIsKicked(true);
     });
 
+    socket.on('error', (payload: { message?: string }) => {
+      setLastError(payload?.message || 'Something went wrong');
+    });
+
     socket.on('disconnect', () => {
       console.log('❌ Disconnected from server');
     });
@@ -162,6 +167,10 @@ const useSocket = () => {
     socketRef.current?.emit('kickStudent', { sessionId, targetSocketId });
   };
 
+  const clearError = () => {
+    setLastError(null);
+  };
+
   return {
     socket: socketRef.current,
     currentPoll,
@@ -170,11 +179,13 @@ const useSocket = () => {
     messages,
     participants,
     isKicked,
+    lastError,
     join,
     createPoll,
     submitVote,
     sendMessage,
     kickStudent,
+    clearError,
   };
 };
 

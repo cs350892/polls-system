@@ -1,12 +1,12 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { PollService, ChatService } from '../services/PollService';
 
 const router = Router();
 
 // Get active poll in session
-router.get('/session/:sessionId/active', async (req, res) => {
+router.get('/session/:sessionId/active', async (req: Request, res: Response) => {
   try {
-    const { sessionId } = req.params;
+    const sessionId = String(req.params.sessionId);
     const result = await PollService.getCurrentPoll(sessionId);
 
     if (!result) {
@@ -20,9 +20,9 @@ router.get('/session/:sessionId/active', async (req, res) => {
 });
 
 // Get poll results
-router.get('/:pollId/results', async (req, res) => {
+router.get('/:pollId/results', async (req: Request, res: Response) => {
   try {
-    const { pollId } = req.params;
+    const pollId = String(req.params.pollId);
     const results = await PollService.getResults(pollId);
     res.json(results);
   } catch (error: any) {
@@ -31,9 +31,9 @@ router.get('/:pollId/results', async (req, res) => {
 });
 
 // Get poll history for session
-router.get('/session/:sessionId/history', async (req, res) => {
+router.get('/session/:sessionId/history', async (req: Request, res: Response) => {
   try {
-    const { sessionId } = req.params;
+    const sessionId = String(req.params.sessionId);
     const history = await PollService.getHistory(sessionId);
     res.json(history);
   } catch (error: any) {
@@ -42,9 +42,9 @@ router.get('/session/:sessionId/history', async (req, res) => {
 });
 
 // Get poll details
-router.get('/:pollId', async (req, res) => {
+router.get('/:pollId', async (req: Request, res: Response) => {
   try {
-    const { pollId } = req.params;
+    const pollId = String(req.params.pollId);
     const poll = await PollService.getPoll(pollId);
 
     if (!poll) {

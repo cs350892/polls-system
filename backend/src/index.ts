@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -11,15 +11,25 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const CLIENT_ORIGINS = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map((origin) => origin.trim())
+  : ['http://localhost:5173'];
+
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173', // Vite default port
+    origin: CLIENT_ORIGINS,
     methods: ['GET', 'POST'],
   },
 });
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: CLIENT_ORIGINS,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -34,7 +44,7 @@ handleSockets(io);
 app.use('/api/polls', pollRoutes);
 
 // Basic routes
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'Server is running' });
 });
 
